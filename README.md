@@ -8,6 +8,49 @@ This library is designed to allow for copying raw underlying data between differ
 This is helpful for handling things like binary files or network protocols. Using this library you
 are able to safely create structures and cast/copy between them.
 
+## Example usage
+
+In `Cargo.toml`:
+
+```toml
+[dependencies]
+safecast = { path = "../path/to/safecast" }
+```
+
+Example program:
+
+```rust
+use safecast::Safecast;
+
+#[derive(Safecast, Debug)]
+#[repr(C)]
+struct PacketData {
+    data:     u64,
+    sequence: u64,
+    flags:    u32,
+    _padding: u32,
+}
+
+fn main() {
+    let packet = [0x41u8; 0x18];
+
+    let val: PacketData = packet.cast_copy();
+
+    print!("Packet data is {:#x?}\n", val);
+}
+```
+
+Output:
+
+```
+Packet data is PacketData {
+    data: 0x4141414141414141,
+    sequence: 0x4141414141414141,
+    flags: 0x41414141,
+    _padding: 0x41414141
+}
+```
+
 ## Safety
 
 This casting/copying is safe given the following:
