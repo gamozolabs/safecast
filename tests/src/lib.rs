@@ -43,7 +43,12 @@ mod tests {
     #[test]
     #[should_panic="Cast alignment mismatch"]
     fn check_cast_align() {
-        assert!([0x41u8; 6][2..6].cast::<Au32>() == &[Au32(0x41414141); 2]);
+        let bytes = vec![0x41u8; 32];
+        let mut ptr = &bytes[..];
+        while ((ptr.as_ptr() as usize) & 3) == 0 {
+            ptr = &ptr[1..];
+        }
+        assert!(ptr[..4].cast::<Au32>() == &[Au32(0x41414141)]);
     }
     
     #[test]
