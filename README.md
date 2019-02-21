@@ -13,7 +13,7 @@ are able to safely create structures and cast/copy between them.
 This casting/copying is safe given the following:
 
 - The structure is composed only of types which have no invalid/unsafe underlying binary encodings
-    - Currently only `u8`, `u16`, `u32`, `u64`, `u128, `usize`, `i8`, `i16`, `i32`, `i64`, `i128, `isize` are considered
+    - Currently only `u8`, `u16`, `u32`, `u64`, `u128`, `usize`, `i8`, `i16`, `i32`, `i64`, `i128, `isize` are considered
       to have these properties.
     - Structures may have structures in them which are also packed and contain only the aforementioned
       types.
