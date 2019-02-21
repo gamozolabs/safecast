@@ -1,0 +1,9 @@
+[package]
+name = "tests"
+version = "0.1.0"
+authors = ["Brandon Falk <bfalk@gamozolabs.com>"]
+edition = "2018"
+
+[dependencies]
+safecast = { path = ".." }
+
