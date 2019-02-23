@@ -39,26 +39,39 @@ pub fn derive_safecast(item: TokenStream) -> TokenStream {
     let stream = item.to_string();
 
     // Split up the structure definition into its lines
-    let lines: Vec<&str> = stream.lines().collect();
+    let mut lines: Vec<&str> = stream.lines().collect();
 
-    // Make sure the first line of this derived structure is a
-    // `#[repr(C)]`
-    assert!(lines.len() > 0 && lines[0] == "#[repr(C)]",
-        "Safecast requires #[repr(C)]");
+    // Remove all document comments
+    lines.retain(|x| !x.trim().starts_with("///"));
+    
+    // Join the lines together into one big string
+    let commentless: String = lines.concat();
+   
+    // Make sure this structure is `#[repr(C)]`
+    assert!(lines.iter().fold(false, |acc, &x| acc | (x == "#[repr(C)]")),
+        "Structure must be #[repr(C)] for Safecast");
 
     // There has to be at least one line of the form:
     // Regular: `struct Moose {`
     // Tuple:   `struct Flat(u32, u32);`
     // Unit:    `struct Unit;`
-    assert!(lines.len() > 1, "Malformed structure definition");
 
-    // Make sure it's a struct
-    assert!(lines[1].starts_with("struct "),
-        "Type must be a struct for Safecast");
+    let mut structline = None;
+    for (ii, line) in lines.iter().enumerate() {
+        if line.starts_with("struct ") || line.starts_with("pub struct ") {
+            structline = Some(ii);
+            break;
+        }
+    }
+
+    // Make sure we found the structure definition line
+    assert!(structline.is_some(), "Failed to find `struct` or `pub struct`, \
+            type not allowed for Safecast");
+    let structline = structline.unwrap();
 
     // Figure out the type of this structure
-    let is_tuple_struct = stream.ends_with(");");
-    let is_named_struct = stream.ends_with("}");
+    let is_tuple_struct = commentless.ends_with(");");
+    let is_named_struct = commentless.ends_with("}");
 
     // Make sure it's either a named or tuple struct
     assert!((is_tuple_struct && !is_named_struct) ||
@@ -67,30 +80,22 @@ pub fn derive_safecast(item: TokenStream) -> TokenStream {
 
     // Now lets get the identifier
     let ident = if is_named_struct {
-        lines[1].split("struct ").nth(1).unwrap().split(" {").nth(0).unwrap()
+        lines[structline].splitn(2, "struct ").nth(1).unwrap()
+            .splitn(2, " {").nth(0).unwrap()
     } else {
-        lines[1].split("struct ").nth(1).unwrap().split("(").nth(0).unwrap()
+        lines[structline].splitn(2, "struct ").nth(1).unwrap()
+            .splitn(2, "(").nth(0).unwrap()
     };
-    
-    // Now we have to remove document comments. Normal comments `//` and
-    // `/* */` were removed for us and thus will not be present, but there
-    // will be `///` comments in the output. Let's remove them!
-    // This also removes CRLFs from the input
-    let mut commentless = String::new();
-    for line in lines {
-        if line.trim().starts_with("///") { continue; }
-        commentless += line;
-    }
 
     // Parse out the fields of the structure
     // Also remove all spaces, newlines, CRs, and tabs
     let fields = if is_named_struct {
-        commentless.split(&format!("struct {} {{", ident)).nth(1)
+        commentless.splitn(2, &format!("struct {} {{", ident)).nth(1)
             .expect("Could not find struct prefix")
-            .split("}").nth(0).expect("Could not find struct postfix")
+            .splitn(2, "}").nth(0).expect("Could not find struct postfix")
     } else {
-        commentless.split(&format!("struct {}(", ident)).nth(1).unwrap()
-            .split(");").nth(0).unwrap()
+        commentless.splitn(2, &format!("struct {}(", ident)).nth(1).unwrap()
+            .splitn(2, ");").nth(0).unwrap()
     }.replace(" ", "").replace("\t", "");
 
     // For a tuple struct fields should look like:
@@ -149,12 +154,11 @@ pub fn derive_safecast(item: TokenStream) -> TokenStream {
     // of it's members. This ensures that there are no padding bytes in the
     // structure.
     //
-    // Note: This `size_of::<{}>()` is what prevents us from using a slice
+    // Note: This `size_of::<Self>()` is what prevents us from using a slice
     //       in a structure. This is quite important to have here!
     impltrait += &format!("        \
-        assert!(unpadded_struct_size == ::core::mem::size_of::<{}>(),\
-            \"Safecast not allowed on structures with padding bytes\");\n",
-        ident);
+        assert!(unpadded_struct_size == ::core::mem::size_of::<Self>(), \
+            \"Safecast not allowed on structures with padding bytes\");\n");
 
     // Close braces for the `safecast` function and the `impl Safecast`
     impltrait += &format!("    }}\n}}\n");

@@ -10,6 +10,10 @@ mod tests {
     #[repr(C)]
     struct Au32Pad(u32, u8);
 
+    #[allow(dead_code)]
+    #[derive(Safecast)]
+    #[repr(C)]
+    struct Moosestruct { a: u32 }
 
     #[test]
     fn check_cast_copy() {
