@@ -19,7 +19,7 @@ pub unsafe trait Safecast {
         assert!(core::mem::size_of_val(dest) > 0, "ZST not allowed");
 
         // Make sure sizes match between the two things
-        assert!(core::mem::size_of_val(self) == core::mem::size_of_val(dest)
+        assert!(core::mem::size_of_val(self) == core::mem::size_of_val(dest),
                 "Size mismatch in cast_copy_into");
 
         // Validate runtime checks on the structures we're working with
